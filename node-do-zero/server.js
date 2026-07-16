@@ -41,6 +41,12 @@ server.put('/videos/:id', async (request, reply) => {
     return reply.status(204).send()
 })
 
+app.get('/', async (request, reply) => {
+  return {
+    status: 'API online 🚀'
+  }
+})
+
 server.delete('/videos/:id', async (request, reply) => {
     const videoId = request.params.id
 
