@@ -22,5 +22,6 @@ model Movies {
   rating      Float
   category    String
   type        String
+  genres      String   @default("")
   createdAt   DateTime @default(now())
 }

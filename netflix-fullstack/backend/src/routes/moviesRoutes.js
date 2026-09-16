@@ -8,7 +8,16 @@ const prisma = new PrismaClient()
 // LISTAR DO BANCO
 router.get("/movies", async (req, res) => {
 
-    const movies = await prisma.movies.findMany();
+    const movies = await prisma.movies.findMany({
+        where: {
+            poster: {
+                not: ""
+            },
+            backdrop: {
+                not: ""
+            }
+        }
+    });
 
     const convert = (movie) => ({
 
@@ -38,18 +47,25 @@ router.get("/movies", async (req, res) => {
 
         genre_ids: [],
 
-        genres: []
+        genres: movie.genres
+            ? movie.genres.split(', ').map((name, index) => ({
+                id: index,
+                name
+            }))
+            : []
     });
 
     const category = (name) => ({
         slug: name,
         title:
             name === "originals" ? "Originais" :
-            name === "trending" ? "Recomendados" :
-            name === "action" ? "Ação" :
-            name === "comedy" ? "Comédia" :
-            name === "horror" ? "Terror" :
-            "Romance",
+                name === "trending" ? "Recomendados" :
+                    name === "action" ? "Ação" :
+                        name === "comedy" ? "Comédia" :
+                            name === "horror" ? "Terror" :
+                                name === "romance" ? "Romance" :
+                                    name === "documentary" ? "Documentários" :
+                                        "Outros",
 
         items: {
             results: movies
@@ -64,7 +80,8 @@ router.get("/movies", async (req, res) => {
         category("action"),
         category("comedy"),
         category("horror"),
-        category("romance")
+        category("romance"),
+        category("documentary")
     ]);
 
 });
@@ -109,13 +126,18 @@ router.get("/movies/:id", async (req, res) => {
 
         number_of_seasons: 1,
 
-        genres: [],
+        genres: movie.genres
+            ? movie.genres.split(', ').map((name, index) => ({
+                id: index,
+                name
+            }))
+            : [],
 
         media_type: movie.type
 
     });
 
-}); 
+});
 
 // IMPORTAR DO TMDB PARA O BANCO
 
@@ -124,38 +146,41 @@ router.post('/movies/import', async (req, res) => {
 
         const movies = await getAllMoviesFromTMDB()
 
-        const formatted = movies.map(movie => {
+        const formatted = movies
+            .filter(movie => movie.poster_path && movie.backdrop_path)
+            .map(movie => {
 
-    const isTV = movie.name && !movie.title;
+                const isTV = movie.name && !movie.title;
 
-    return {
-        title: movie.title || movie.name,
-        description: movie.overview,
-        poster: movie.poster_path,
-        backdrop: movie.backdrop_path,
+                return {
+                    title: movie.title || movie.name,
+                    description: movie.overview || "",
+                    poster: movie.poster_path,
+                    backdrop: movie.backdrop_path,
 
-        year: Number(
-            movie.release_date?.slice(0, 4) ||
-            movie.first_air_date?.slice(0, 4) ||
-            0
-        ),
+                    year: Number(
+                        movie.release_date?.slice(0, 4) ||
+                        movie.first_air_date?.slice(0, 4) ||
+                        0
+                    ),
 
-        rating: movie.vote_average,
+                    rating: movie.vote_average,
 
-        type: isTV ? "tv" : "movie",
+                    type: isTV ? "tv" : "movie",
 
-        
-        category:
-            Array.isArray(movie.genre_ids) && movie.genre_ids.includes(28) ? "action" :
-                Array.isArray(movie.genre_ids) && movie.genre_ids.includes(35) ? "comedy" :
-                    Array.isArray(movie.genre_ids) && movie.genre_ids.includes(27) ? "horror" :
-                        Array.isArray(movie.genre_ids) && movie.genre_ids.includes(10749) ? "romance" :
-                            Array.isArray(movie.genre_ids) && movie.genre_ids.includes(99) ? "documentary" :
-                                movie.name ? "originals" :
-                                    "trending"
+                    genres: movie.genres || '',
 
-    };
-});
+                    category:
+                        Array.isArray(movie.genre_ids) && movie.genre_ids.includes(28) ? "action" :
+                            Array.isArray(movie.genre_ids) && movie.genre_ids.includes(35) ? "comedy" :
+                                Array.isArray(movie.genre_ids) && movie.genre_ids.includes(27) ? "horror" :
+                                    Array.isArray(movie.genre_ids) && movie.genre_ids.includes(10749) ? "romance" :
+                                        Array.isArray(movie.genre_ids) && movie.genre_ids.includes(99) ? "documentary" :
+                                            movie.name ? "originals" :
+                                                "trending"
+
+                };
+            });
 
         console.log("TOTAL FORMATADO:", formatted.length)
 
